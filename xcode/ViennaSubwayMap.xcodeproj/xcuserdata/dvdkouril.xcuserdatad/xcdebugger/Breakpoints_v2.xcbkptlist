@@ -10,11 +10,11 @@
             ignoreCount = "0"
             continueAfterRunningActions = "No"
             filePath = "../src/ViennaSubwayMapApp.cpp"
-            timestampString = "532109644.304499"
+            timestampString = "532182945.094971"
             startingColumnNumber = "9223372036854775807"
             endingColumnNumber = "9223372036854775807"
-            startingLineNumber = "103"
-            endingLineNumber = "103"
+            startingLineNumber = "172"
+            endingLineNumber = "172"
             landmarkName = "ViennaSubwayMapApp::setup()"
             landmarkType = "7">
          </BreakpointContent>
