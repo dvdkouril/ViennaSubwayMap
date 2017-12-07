@@ -601,4 +601,7 @@ dependencies: \
   ../../../../cinder_0.9.1_mac/include/cinder/app/RendererGl.h \
   ../../../../cinder_0.9.1_mac/include/cinder/CameraUi.h \
   ../../../../cinder_0.9.1_mac/include/cinder/Log.h \
-  ../../../../cinder_0.9.1_mac/include/cinder/System.h
+  ../../../../cinder_0.9.1_mac/include/cinder/System.h \
+  ../blocks/ImGui/include/CinderImGui.h \
+  ../blocks/ImGui/include/CinderImGuiExports.h \
+  ../blocks/ImGui/lib/imgui/imgui.h ../blocks/ImGui/lib/imgui/imconfig.h

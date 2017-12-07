@@ -1,0 +1,5 @@
+* TODOs
+** TODO Connect line segments
+*** TODO Make selecting of lines possible
+*** TODO Implement lines connecting
+** TODO Implement thick line rendering

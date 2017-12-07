@@ -4,6 +4,8 @@
 #include "cinder/CameraUi.h"
 #include "cinder/Log.h"
 
+#include "CinderImGui.h"
+
 #include <fstream>
 
 using namespace ci;
@@ -38,10 +40,11 @@ class ViennaSubwayMapApp : public App {
     vec2 computeDataMiddlePoint();
     
 private:
-    CameraPersp             mCamera;
-    CameraUi                mCameraController;
-    std::vector<UbahnLine*>  lines;
-    std::vector<UbahnStation*> stations;
+    CameraPersp                     mCamera;
+    CameraUi                        mCameraController;
+    std::vector<UbahnLine*>         lines;
+    std::map<size_t, UbahnLine*>    uBahnLines;
+    std::vector<UbahnStation*>      stations;
     
     vec2                    dataMiddlePoint;
     gl::GlslProgRef         simpleShader;
@@ -182,6 +185,17 @@ void ViennaSubwayMapApp::loadLineDataFromFile(string filePath)
             subwayLine->lineColor = col;
             lines.push_back(subwayLine);
             
+            if (uBahnLines.count(number) == 0)
+            {
+                uBahnLines[number] = subwayLine;
+            } else {
+                // a.insert(a.end(), b.begin(), b.end());
+                //uBahnLines[number]->points.push_back(coordinates);
+                uBahnLines[number]->points.insert(uBahnLines[number]->points.end(), coordinates.begin(),
+                                                  coordinates.end());
+                                                  
+            }
+            
             numOfLines++;
         }
         
@@ -255,6 +269,7 @@ void ViennaSubwayMapApp::loadStationsDataFromFile(string filePath)
 
 void ViennaSubwayMapApp::setup()
 {
+    ImGui::initialize();
     mCameraController = CameraUi(&mCamera, getWindow(), -1);
     
     loadLineDataFromFile("data/UBAHNOGD.csv");
@@ -308,6 +323,8 @@ void ViennaSubwayMapApp::draw()
         auto coord = station->position - this->dataMiddlePoint;
         gl::drawCube(vec3(coord.x * 1000.0, 0, coord.y * 1000.0), vec3(0.5));
     }
+    
+    ImGui::Text("Hello, gabi!");
 }
 
 gl::GlslProgRef ViennaSubwayMapApp::loadShaders(std::string vsFilename, std::string fsFilename) {
