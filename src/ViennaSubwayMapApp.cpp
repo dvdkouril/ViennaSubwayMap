@@ -8,6 +8,9 @@
 
 #include <fstream>
 
+#include "UbahnDataLoader.hpp"
+#include "Utils.hpp"
+
 using namespace ci;
 using namespace ci::app;
 using namespace std;
@@ -52,89 +55,6 @@ private:
     gl::GlslProgRef         simpleShaderStrip;
 };
 
-string getOneLineDataInString(string line)
-{
-    size_t first = 0;
-    size_t second = 0;
-    
-    first = line.find("\"");
-    second = line.find("\"", first+1);
-    
-    if (first == string::npos || second == string::npos) return "";
-    
-    size_t prestringLength = 13;
-    size_t dataStarts = first + prestringLength;
-    size_t dataEnds = second - 1;
-    return line.substr(dataStarts, dataEnds-dataStarts);
-}
-
-string getLineNumber(string line)
-{
-    size_t firstApost = line.find("\"");
-    size_t secondApost = line.find("\"", firstApost + 1);
-    size_t lineNumberPos = secondApost + 1 + 1;
-    return line.substr(lineNumberPos, 1);
-}
-
-Color getLineColor(int number)
-{
-    auto one =      Color(255.0 / 255.0, 0.0    / 255.0, 0.0    / 255.0); // 255.0 0.0 0.0
-    auto two =      Color(153.0 / 255.0, 0.0    / 255.0, 255.0  / 255.0); // 153.0 0.0 255.0
-    auto three =    Color(255.0 / 255.0, 153.0  / 255.0, 0.0    / 255.0); // 255.0 153.0 0.0
-    auto four =     Color(0.0   / 255.0, 102.0  / 255.0, 0      / 255.0); // 0.0 102.0 0.0
-    auto six =      Color(153.0 / 255.0, 102.0  / 255.0, 51.0   / 255.0); // 153.0 102.0 51.0
-    
-    Color returnColor;
-    if (number == 1)
-    {
-        returnColor = one;
-    }
-    if (number == 2)
-    {
-        returnColor = two;
-    }
-    if (number == 3)
-    {
-        returnColor = three;
-    }
-    if (number == 4)
-    {
-        returnColor = four;
-    }
-    if (number == 6)
-    {
-        returnColor = six;
-    }
-
-    return returnColor;
-}
-
-vector<vec2> getCoordinatesFromString(string dataString)
-{
-    std::vector<vec2> result;
-    
-    size_t last = 0;
-    size_t commaPos = 0;
-    while ((commaPos = dataString.find(",", last)) != string::npos)
-    {
-        string coordsString = dataString.substr(last, commaPos - last);
-        
-        size_t spacePos = coordsString.find(" ");
-        string firstCoordStr = coordsString.substr(0, spacePos);
-        string secondCoordStr = coordsString.substr(spacePos+1, coordsString.length() - (spacePos+1));
-        
-        double firstCoord = stod(firstCoordStr);
-        double secondCoord = stod(secondCoordStr);
-        
-        //result.push_back(vec2(firstCoord, secondCoord));
-        result.push_back(vec2(secondCoord, firstCoord)); //~ the coordinates are actually inverted in the data file
-        
-        last = commaPos + 2; // +1 for the comma, +1 for the space after comma
-    }
-    
-    return result;
-}
-
 vec2 ViennaSubwayMapApp::computeDataMiddlePoint()
 {
     vec2 minCoord(500,500);
@@ -171,14 +91,14 @@ void ViennaSubwayMapApp::loadLineDataFromFile(string filePath)
         size_t numOfLines = 0;
         while (getline(textFile, line))
         {
-            string lineData = getOneLineDataInString(line);
+            string lineData = UbahnDataLoader::getOneLineDataInString(line);
             
             if (lineData.length() == 0) continue;
             
-            vector<vec2> coordinates = getCoordinatesFromString(lineData);
-            string lineNumber = getLineNumber(line);
+            vector<vec2> coordinates = UbahnDataLoader::getCoordinatesFromString(lineData);
+            string lineNumber = UbahnDataLoader::getLineNumber(line);
             int number = stoi(lineNumber);
-            Color col = getLineColor(number);
+            Color col = UbahnDataLoader::getLineColor(number);
             
             UbahnLine * subwayLine = new UbahnLine;
             subwayLine->points = coordinates;
@@ -205,37 +125,6 @@ void ViennaSubwayMapApp::loadLineDataFromFile(string filePath)
     }
 }
 
-std::vector<string> tokenize(string line, string breakAt)
-{
-    size_t last = 0;
-    size_t found = 0;
-    std::vector<string> tokens;
-    while ((found = line.find(breakAt, last)) != string::npos )
-    {
-        auto token = line.substr(last, found - last);
-        tokens.push_back(token);
-        last = found + 1;
-    }
-    
-    auto token = line.substr(last, line.length() - last);
-    tokens.push_back(token);
-    return tokens;
-}
-
-vec2 getPositionFromString(string point)
-{
-    size_t firstBracket = point.find("(");
-    size_t secondBracket = point.find(")");
-    string coordsStr = point.substr(firstBracket + 1, (secondBracket - 1) - (firstBracket + 1));
-    console() << "hey";
-    
-    auto tokens = tokenize(coordsStr, " ");
-    auto xCoord = stod(tokens[0]);
-    auto yCoord = stod(tokens[1]);
-    return vec2(yCoord, xCoord);
-    //return vec2(xCoord, yCoord);
-}
-
 void ViennaSubwayMapApp::loadStationsDataFromFile(string filePath)
 {
     ifstream textFile(getAssetPath(filePath).c_str());
@@ -251,11 +140,11 @@ void ViennaSubwayMapApp::loadStationsDataFromFile(string filePath)
                 continue; //~ skip the first line with headings
             }
             
-            auto tokens = tokenize(line, ",");
+            auto tokens = Utils::tokenize(line, ",");
             string point = tokens[2];
             string name = tokens[5];
             
-            vec2 stationPosition = getPositionFromString(point);
+            vec2 stationPosition = UbahnDataLoader::getPositionFromString(point);
             
             UbahnStation * station = new UbahnStation;
             station->name = name;

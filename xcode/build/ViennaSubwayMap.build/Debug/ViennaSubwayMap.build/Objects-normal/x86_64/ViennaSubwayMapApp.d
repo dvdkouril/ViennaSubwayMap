@@ -604,4 +604,6 @@ dependencies: \
   ../../../../cinder_0.9.1_mac/include/cinder/System.h \
   ../blocks/ImGui/include/CinderImGui.h \
   ../blocks/ImGui/include/CinderImGuiExports.h \
-  ../blocks/ImGui/lib/imgui/imgui.h ../blocks/ImGui/lib/imgui/imconfig.h
+  ../blocks/ImGui/lib/imgui/imgui.h ../blocks/ImGui/lib/imgui/imconfig.h \
+  /Users/dvdkouril/projects/graphics/ViennaSubwayMap/src/UbahnDataLoader.hpp \
+  /Users/dvdkouril/projects/graphics/ViennaSubwayMap/src/Utils.hpp
