@@ -18,6 +18,7 @@ struct UbahnLine {
     string              lineName;
     int                 lineNumber;
     gl::VboMeshRef      linePositionData;
+    gl::VboMeshRef      lineStripData;
 };
 
 struct UbahnStation {
@@ -48,6 +49,7 @@ private:
     
     vec2                    dataMiddlePoint;
     gl::GlslProgRef         simpleShader;
+    gl::GlslProgRef         simpleShaderStrip;
 };
 
 string getOneLineDataInString(string line)
@@ -185,16 +187,16 @@ void ViennaSubwayMapApp::loadLineDataFromFile(string filePath)
             subwayLine->lineColor = col;
             lines.push_back(subwayLine);
             
-            if (uBahnLines.count(number) == 0)
-            {
-                uBahnLines[number] = subwayLine;
-            } else {
-                // a.insert(a.end(), b.begin(), b.end());
-                //uBahnLines[number]->points.push_back(coordinates);
-                uBahnLines[number]->points.insert(uBahnLines[number]->points.end(), coordinates.begin(),
-                                                  coordinates.end());
-                                                  
-            }
+//            if (uBahnLines.count(number) == 0)
+//            {
+//                uBahnLines[number] = subwayLine;
+//            } else {
+//                // a.insert(a.end(), b.begin(), b.end());
+//                //uBahnLines[number]->points.push_back(coordinates);
+//                uBahnLines[number]->points.insert(uBahnLines[number]->points.end(), coordinates.begin(),
+//                                                  coordinates.end());
+//                                                  
+//            }
             
             numOfLines++;
         }
@@ -278,20 +280,51 @@ void ViennaSubwayMapApp::setup()
     //~ Load data to GPU buffer
     for (auto& line : this->lines)
     {
-        gl::VboMesh::Layout layout;
-        layout.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 2);
-        
         for (auto &coord : line->points)
         {
             coord -= this->dataMiddlePoint;
         }
         
+        gl::VboMesh::Layout layout;
+        layout.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 2);
         line->linePositionData = gl::VboMesh::create(line->points.size(), GL_LINE_STRIP, {layout});
         line->linePositionData->bufferAttrib(geom::POSITION, line->points.size() * sizeof(vec2), line->points.data());
+        
+        //~ Generate rectangular strip around the line
+        std::vector<vec3> stripData;
+        for (int i = 0; i < line->points.size() - 1; i++)
+        {
+            auto thisPoint = line->points[i];
+            auto nextPoint = line->points[i + 1];
+            
+            vec2 direction2d = nextPoint - thisPoint;
+            vec3 direction = vec3(direction2d.x, 0, direction2d.y);
+            vec3 up = vec3(0, 1, 0);
+            
+            vec3 offsetVector = cross(normalize(direction), normalize(up));
+            vec3 offsetVectorInv = -offsetVector;
+            
+            vec3 A = vec3(thisPoint.x, 0, thisPoint.y) + 0.001f * offsetVectorInv;
+            vec3 B = vec3(thisPoint.x, 0, thisPoint.y) + 0.001f * offsetVector;
+            vec3 C = vec3(nextPoint.x, 0, nextPoint.y) + 0.001f * offsetVectorInv;
+            vec3 D = vec3(nextPoint.x, 0, nextPoint.y) + 0.001f * offsetVector;
+            
+            stripData.push_back(A);
+            stripData.push_back(B);
+            stripData.push_back(C);
+            stripData.push_back(D);
+        }
+        
+        gl::VboMesh::Layout layoutStrip;
+        layoutStrip.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 3);
+        line->lineStripData = gl::VboMesh::create(stripData.size(), GL_TRIANGLE_STRIP, {layoutStrip});
+        line->lineStripData->bufferAttrib(geom::POSITION, stripData.size() * sizeof(vec3), stripData.data());
+        
     }
     
     //~ Shaders loading
     simpleShader = loadShaders("simple.vs", "simple.fs");
+    simpleShaderStrip = loadShaders("simple-tristrip.vs", "simple-tristrip.fs");
 }
 
 void ViennaSubwayMapApp::mouseDown( MouseEvent event )
@@ -309,14 +342,22 @@ void ViennaSubwayMapApp::draw()
     
     gl::setMatrices(mCamera);
     {
-    gl::ScopedGlslProg prog(simpleShader);
-    gl::setDefaultShaderVars();
-    for (auto line : lines)
-    {
-        vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
-        simpleShader->uniform("lineColor", colVec4);
-        gl::draw(line->linePositionData);
-    }
+        gl::ScopedGlslProg prog(simpleShader);
+        gl::setDefaultShaderVars();
+        for (auto line : lines)
+        {
+            vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
+            simpleShader->uniform("lineColor", colVec4);
+            gl::draw(line->linePositionData);
+        }
+        gl::ScopedGlslProg progStrip(simpleShaderStrip);
+        gl::setDefaultShaderVars();
+        for (auto line : lines)
+        {
+            vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
+            simpleShaderStrip->uniform("lineColor", colVec4);
+            gl::draw(line->lineStripData);
+        }
     }
     for (auto station : stations)
     {
@@ -324,7 +365,7 @@ void ViennaSubwayMapApp::draw()
         gl::drawCube(vec3(coord.x * 1000.0, 0, coord.y * 1000.0), vec3(0.5));
     }
     
-    ImGui::Text("Hello, gabi!");
+    //ImGui::Text("Hello, gabi!");
 }
 
 gl::GlslProgRef ViennaSubwayMapApp::loadShaders(std::string vsFilename, std::string fsFilename) {
