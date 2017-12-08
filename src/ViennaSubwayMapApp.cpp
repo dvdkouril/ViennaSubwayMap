@@ -78,11 +78,11 @@ string getLineNumber(string line)
 
 Color getLineColor(int number)
 {
-    auto one = Color(1, 0, 0);
-    auto two = Color(0, 1, 0);
-    auto three = Color(0, 0, 1);
-    auto four = Color(1, 1, 0);
-    auto six = Color(0, 1, 1);
+    auto one =      Color(255.0 / 255.0, 0.0    / 255.0, 0.0    / 255.0); // 255.0 0.0 0.0
+    auto two =      Color(153.0 / 255.0, 0.0    / 255.0, 255.0  / 255.0); // 153.0 0.0 255.0
+    auto three =    Color(255.0 / 255.0, 153.0  / 255.0, 0.0    / 255.0); // 255.0 153.0 0.0
+    auto four =     Color(0.0   / 255.0, 102.0  / 255.0, 0      / 255.0); // 0.0 102.0 0.0
+    auto six =      Color(153.0 / 255.0, 102.0  / 255.0, 51.0   / 255.0); // 153.0 102.0 51.0
     
     Color returnColor;
     if (number == 1)
@@ -396,6 +396,6 @@ gl::GlslProgRef ViennaSubwayMapApp::loadShaders(std::string vsFilename, std::str
     
 }
 
-CINDER_APP( ViennaSubwayMapApp, RendererGl, [](App::Settings* settings) {
+CINDER_APP( ViennaSubwayMapApp, RendererGl( RendererGl::Options().msaa(16)), [](App::Settings* settings) {
     settings->setWindowSize(1280, 720);
 })
