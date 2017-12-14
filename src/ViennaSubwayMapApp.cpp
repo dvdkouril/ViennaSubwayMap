@@ -3,6 +3,7 @@
 #include "cinder/gl/gl.h"
 #include "cinder/CameraUi.h"
 #include "cinder/Log.h"
+#include "cinder/Easing.h"
 
 #include "CinderImGui.h"
 
@@ -32,7 +33,11 @@ struct UbahnStation {
 class ViennaSubwayMapApp : public App {
   public:
 	void setup() override;
-	void mouseDown( MouseEvent event ) override;
+	//void mouseDown( MouseEvent event ) override;
+    //void mouseMove( MouseEvent event ) override;
+    void mouseUp( MouseEvent event ) override;
+    void mouseDrag( MouseEvent event ) override;
+    void mouseWheel( MouseEvent event ) override;
 	void update() override;
 	void draw() override;
     
@@ -49,6 +54,22 @@ private:
     std::vector<UbahnLine*>         lines;
     std::map<size_t, UbahnLine*>    uBahnLines;
     std::vector<UbahnStation*>      stations;
+    
+    //bool                    mouseIsDown;
+    bool                    draggingNow;
+    vec2                    lastMousePosition;
+    
+    float                   lastFrameTime;
+    // zooming:
+//    float                   zoomTargetValue;
+//    float                   zoomStartValue;
+//    float                   zoomCurrentValue;
+//    float                   zoomAnimDurationMs;
+//    float                   zoomAnimT;
+    vec3                    cameraTargetPosition;
+    vec3                    cameraStartPosition;
+    float                   cameraAnimDurationMs;
+    float                   cameraAnimT;
     
     vec2                    dataMiddlePoint;
     gl::GlslProgRef         simpleShader;
@@ -161,7 +182,15 @@ void ViennaSubwayMapApp::loadStationsDataFromFile(string filePath)
 void ViennaSubwayMapApp::setup()
 {
     ImGui::initialize();
-    mCameraController = CameraUi(&mCamera, getWindow(), -1);
+    //mCameraController = CameraUi(&mCamera, getWindow(), -1);
+    mCamera.lookAt(vec3(10, 10, 0), vec3(0,0,0));
+    //mouseIsDown = false;
+    draggingNow = false;
+    //zoomAnimDurationMs = 1;
+    cameraAnimDurationMs = 2000;
+    lastFrameTime = 0.0f;
+    cameraStartPosition = mCamera.getEyePoint();
+    cameraTargetPosition = cameraStartPosition;
     
     loadLineDataFromFile("data/UBAHNOGD.csv");
     loadStationsDataFromFile("data/UBAHNHALTOGD.csv");
@@ -193,10 +222,10 @@ void ViennaSubwayMapApp::setup()
             vec3 offsetVector = cross(normalize(direction), normalize(up));
             vec3 offsetVectorInv = -offsetVector;
             
-            vec3 A = vec3(thisPoint.x, 0, thisPoint.y) + 0.001f * offsetVectorInv;
-            vec3 B = vec3(thisPoint.x, 0, thisPoint.y) + 0.001f * offsetVector;
-            vec3 C = vec3(nextPoint.x, 0, nextPoint.y) + 0.001f * offsetVectorInv;
-            vec3 D = vec3(nextPoint.x, 0, nextPoint.y) + 0.001f * offsetVector;
+            vec3 A = vec3(thisPoint.x, 0, thisPoint.y) + 0.0005f * offsetVectorInv;
+            vec3 B = vec3(thisPoint.x, 0, thisPoint.y) + 0.0005f * offsetVector;
+            vec3 C = vec3(nextPoint.x, 0, nextPoint.y) + 0.0005f * offsetVectorInv;
+            vec3 D = vec3(nextPoint.x, 0, nextPoint.y) + 0.0005f * offsetVector;
             
             stripData.push_back(A);
             stripData.push_back(B);
@@ -216,18 +245,82 @@ void ViennaSubwayMapApp::setup()
     simpleShaderStrip = loadShaders("simple-tristrip.vs", "simple-tristrip.fs");
 }
 
-void ViennaSubwayMapApp::mouseDown( MouseEvent event )
+//void ViennaSubwayMapApp::mouseDown( MouseEvent event )
+//{
+//    mouseIsDown = true;
+//    cout << "sup: " << event.getPos() << endl; //~ returns position in window coordinates (0,0) top left
+//    quat camOrientation = mCamera.getOrientation();
+//}
+//
+void ViennaSubwayMapApp::mouseUp( MouseEvent event )
 {
+    //mouseIsDown = false;
+    draggingNow = false;
+    cout << "mouseUp" << endl;
+}
+
+void ViennaSubwayMapApp::mouseWheel(MouseEvent event)
+{
+    float incr = event.getWheelIncrement();
+//    zoomCurrentValue = 0.0f;
+//    zoomStartValue = 0.0f;
+//    zoomTargetValue = incr;
+//    zoomAnimT = 0.0f;
+    
+    auto v = mCamera.getViewDirection();
+    auto currentPos = mCamera.getEyePoint();
+    cameraStartPosition = currentPos;
+    cameraTargetPosition = currentPos + incr * v;
+    cameraAnimT = 0.0f;
+    //mCamera.setEyePoint(currentPos + 0.5f * v);
+    //mCamera.setEyePoint(currentPos + incr * v);
+}
+
+void ViennaSubwayMapApp::mouseDrag(MouseEvent event)
+{
+    cout << "mouseDrag" << endl;
+    
+    ivec2 posNow;
+    ivec2 posBefore;
+    if (draggingNow)
+    {
+        posNow = event.getPos();
+        posBefore = lastMousePosition;
+        lastMousePosition = posNow;
+        auto diff = posNow - posBefore;
+        
+        quat camRotation = mCamera.getOrientation();
+        //glm::angleAxis(1.0, vec3(0, 1, 0));
+        cout << "diff = " << diff;
+        quat additional = angleAxis((float)(diff.x * toRadians(1.0)), vec3(0, 1, 0));
+        mCamera.setOrientation(camRotation * additional);
+    }
+    else {
+        draggingNow = true;
+    }
 }
 
 void ViennaSubwayMapApp::update()
 {
+    double elapsedMs = getElapsedSeconds() * 1000;
+    float frameTime = elapsedMs - lastFrameTime;
+    lastFrameTime = elapsedMs;
+    
+    //~ zoom update
+//    zoomAnimT += frameTime;
+//    float t = zoomAnimT / zoomAnimDurationMs;
+//    zoomCurrentValue = lerp(zoomStartValue, zoomTargetValue, t);
+    cameraAnimT += frameTime;
+    float t = cameraAnimT / cameraAnimDurationMs;
+    t = clamp(t, 0.0f, 1.0f);
+    vec3 newPos = lerp(cameraStartPosition, cameraTargetPosition, easeOutExpo(t));
+    mCamera.setEyePoint(newPos);
 }
 
 void ViennaSubwayMapApp::draw()
 {
     //gl::clear( Color( 1, 1, 1 ) );
-    gl::clear( Color( 0, 0, 0 ) );
+    gl::clear( Color( 0.1, 0.1, 0.15 ) );
     
     gl::setMatrices(mCamera);
     {

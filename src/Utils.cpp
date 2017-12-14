@@ -7,6 +7,8 @@
 //
 
 #include "Utils.hpp"
+#include "cinder/Log.h"
+#include "cinder/app/App.h"
 
 std::vector<string> Utils::tokenize(string line, string breakAt)
 {
@@ -24,3 +26,31 @@ std::vector<string> Utils::tokenize(string line, string breakAt)
     tokens.push_back(token);
     return tokens;
 }
+
+//gl::GlslProgRef Utils::loadShaders(std::string vsFilename, std::string fsFilename) {
+//    // Shortcut for shader loading and error handling
+//    auto loadGlslProg = [ & ]( const gl::GlslProg::Format& format ) -> gl::GlslProgRef
+//    {
+//        string names = format.getVertexPath().string() + " + " +
+//        format.getFragmentPath().string();
+//        gl::GlslProgRef glslProg;
+//        try {
+//            glslProg = gl::GlslProg::create( format );
+//        } catch ( const Exception& ex ) {
+//            CI_LOG_EXCEPTION( names, ex );
+//            quit();
+//        }
+//        return glslProg;
+//    };
+//    
+//    DataSourceRef vertShader = loadAsset(vsFilename);
+//    DataSourceRef fragShader = loadAsset(fsFilename);
+//    
+//    gl::GlslProgRef shaderProgram = loadGlslProg(gl::GlslProg::Format().version(330)
+//                                                 .vertex(vertShader).fragment(fragShader));
+//    
+//    CI_LOG_D("All shaders loaded and compiled.");
+//    
+//    return shaderProgram;
+//    
+//}

@@ -598,4 +598,6 @@ dependencies: \
   /Users/dvdkouril/projects/graphics/ViennaSubwayMap/xcode/../../../../cinder_0.9.1_mac/include/cinder/Cinder.h \
   /Users/dvdkouril/projects/graphics/ViennaSubwayMap/xcode/ViennaSubwayMap_Prefix.pch \
   /Users/dvdkouril/projects/graphics/ViennaSubwayMap/src/Utils.cpp \
-  /Users/dvdkouril/projects/graphics/ViennaSubwayMap/src/Utils.hpp
+  /Users/dvdkouril/projects/graphics/ViennaSubwayMap/src/Utils.hpp \
+  ../../../../cinder_0.9.1_mac/include/cinder/Log.h \
+  ../../../../cinder_0.9.1_mac/include/cinder/System.h

@@ -1,5 +1,7 @@
 * TODOs
 ** TODO Connect line segments
+*** TODO Implement my own camera so that I can get user input events
 *** TODO Make selecting of lines possible
 *** TODO Implement lines connecting
-** TODO Implement thick line rendering
+** TODO Somehow integrate heigh data of stations from Yun
+** DONE Implement thick line rendering
