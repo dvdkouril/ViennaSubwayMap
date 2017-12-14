@@ -270,10 +270,8 @@ void ViennaSubwayMapApp::mouseWheel(MouseEvent event)
     auto v = mCamera.getViewDirection();
     auto currentPos = mCamera.getEyePoint();
     cameraStartPosition = currentPos;
-    cameraTargetPosition = currentPos + incr * v;
+    cameraTargetPosition = currentPos + 10.0f * incr * v;
     cameraAnimT = 0.0f;
-    //mCamera.setEyePoint(currentPos + 0.5f * v);
-    //mCamera.setEyePoint(currentPos + incr * v);
 }
 
 void ViennaSubwayMapApp::mouseDrag(MouseEvent event)
@@ -290,13 +288,14 @@ void ViennaSubwayMapApp::mouseDrag(MouseEvent event)
         auto diff = posNow - posBefore;
         
         quat camRotation = mCamera.getOrientation();
-        //glm::angleAxis(1.0, vec3(0, 1, 0));
         cout << "diff = " << diff;
-        quat additional = angleAxis((float)(diff.x * toRadians(1.0)), vec3(0, 1, 0));
-        mCamera.setOrientation(camRotation * additional);
+        quat yaw = angleAxis((float)(diff.x * toRadians(0.1f)), vec3(0, 1, 0));
+        quat pitch = angleAxis((float)(diff.y * toRadians(0.1f)), vec3(1, 0, 0));
+        mCamera.setOrientation(camRotation * yaw * pitch);
     }
     else {
         draggingNow = true;
+        lastMousePosition = event.getPos();
     }
 }
 
