@@ -17,6 +17,20 @@ using namespace std;
 using namespace ci::app;
 using namespace ci;
 
+struct UbahnLine {
+    std::vector<vec2>   points;
+    Color               lineColor;
+    string              lineName;
+    int                 lineNumber;
+    gl::VboMeshRef      linePositionData;
+    gl::VboMeshRef      lineStripData;
+};
+
+struct UbahnStation {
+    vec2                position;
+    string              name;
+};
+
 class UbahnDataLoader
 {
 public:
@@ -25,6 +39,11 @@ public:
     static Color getLineColor(int number);
     static vector<vec2> getCoordinatesFromString(string dataString);
     static vec2 getPositionFromString(string point);
+    
+    static std::vector<UbahnLine*> loadLineDataFromFile(string filePath);
+    static std::vector<UbahnStation*> loadStationsDataFromFile(string filePath);
+    
+    static std::vector<vec3> loadDataFromYun(string filePath);
 };
 
 #endif /* UbahnDataLoader_hpp */

@@ -16,20 +16,6 @@ using namespace ci;
 using namespace ci::app;
 using namespace std;
 
-struct UbahnLine {
-    std::vector<vec2>   points;
-    Color               lineColor;
-    string              lineName;
-    int                 lineNumber;
-    gl::VboMeshRef      linePositionData;
-    gl::VboMeshRef      lineStripData;
-};
-
-struct UbahnStation {
-    vec2                position;
-    string              name;
-};
-
 class ViennaSubwayMapApp : public App {
   public:
 	void setup() override;
@@ -52,8 +38,11 @@ private:
     CameraPersp                     mCamera;
     CameraUi                        mCameraController;
     std::vector<UbahnLine*>         lines;
-    std::map<size_t, UbahnLine*>    uBahnLines;
+    //std::map<size_t, UbahnLine*>    uBahnLines;
     std::vector<UbahnStation*>      stations;
+    
+    //~ Data from Yun
+    std::vector<vec3>               yunStations;
     
     //bool                    mouseIsDown;
     bool                    draggingNow;
@@ -61,15 +50,15 @@ private:
     
     float                   lastFrameTime;
     // zooming:
-//    float                   zoomTargetValue;
-//    float                   zoomStartValue;
-//    float                   zoomCurrentValue;
-//    float                   zoomAnimDurationMs;
-//    float                   zoomAnimT;
     vec3                    cameraTargetPosition;
     vec3                    cameraStartPosition;
     float                   cameraAnimDurationMs;
     float                   cameraAnimT;
+    // camera rotation:
+    quat                    cameraTargetRotation;
+    quat                    cameraStartRotation;
+    float                   cameraRotDurationMs;
+    float                   cameraRotT;
     
     vec2                    dataMiddlePoint;
     gl::GlslProgRef         simpleShader;
@@ -103,97 +92,24 @@ vec2 ViennaSubwayMapApp::computeDataMiddlePoint()
     return midPoint;
 }
 
-void ViennaSubwayMapApp::loadLineDataFromFile(string filePath)
-{
-    ifstream textFile(getAssetPath(filePath).c_str());
-    if (textFile.is_open())
-    {
-        string line;
-        size_t numOfLines = 0;
-        while (getline(textFile, line))
-        {
-            string lineData = UbahnDataLoader::getOneLineDataInString(line);
-            
-            if (lineData.length() == 0) continue;
-            
-            vector<vec2> coordinates = UbahnDataLoader::getCoordinatesFromString(lineData);
-            string lineNumber = UbahnDataLoader::getLineNumber(line);
-            int number = stoi(lineNumber);
-            Color col = UbahnDataLoader::getLineColor(number);
-            
-            UbahnLine * subwayLine = new UbahnLine;
-            subwayLine->points = coordinates;
-            subwayLine->lineName = lineNumber;
-            subwayLine->lineNumber = number;
-            subwayLine->lineColor = col;
-            lines.push_back(subwayLine);
-            
-//            if (uBahnLines.count(number) == 0)
-//            {
-//                uBahnLines[number] = subwayLine;
-//            } else {
-//                // a.insert(a.end(), b.begin(), b.end());
-//                //uBahnLines[number]->points.push_back(coordinates);
-//                uBahnLines[number]->points.insert(uBahnLines[number]->points.end(), coordinates.begin(),
-//                                                  coordinates.end());
-//                                                  
-//            }
-            
-            numOfLines++;
-        }
-        
-        this->dataMiddlePoint = computeDataMiddlePoint();
-    }
-}
-
-void ViennaSubwayMapApp::loadStationsDataFromFile(string filePath)
-{
-    ifstream textFile(getAssetPath(filePath).c_str());
-    if (textFile.is_open())
-    {
-        string line;
-        size_t numOfLines = 0;
-        while (getline(textFile, line))
-        {
-            if (numOfLines == 0)
-            {
-                numOfLines++;
-                continue; //~ skip the first line with headings
-            }
-            
-            auto tokens = Utils::tokenize(line, ",");
-            string point = tokens[2];
-            string name = tokens[5];
-            
-            vec2 stationPosition = UbahnDataLoader::getPositionFromString(point);
-            
-            UbahnStation * station = new UbahnStation;
-            station->name = name;
-            station->position = stationPosition;
-            
-            stations.push_back(station);
-            
-            numOfLines++;
-        }
-    }
-}
-
-
 void ViennaSubwayMapApp::setup()
 {
     ImGui::initialize();
-    //mCameraController = CameraUi(&mCamera, getWindow(), -1);
-    mCamera.lookAt(vec3(10, 10, 0), vec3(0,0,0));
-    //mouseIsDown = false;
+    mCamera.lookAt(vec3(10, 0, 0), vec3(0,0,0));
     draggingNow = false;
-    //zoomAnimDurationMs = 1;
     cameraAnimDurationMs = 2000;
+    cameraRotDurationMs = 1000;
     lastFrameTime = 0.0f;
     cameraStartPosition = mCamera.getEyePoint();
     cameraTargetPosition = cameraStartPosition;
+    cameraStartRotation = mCamera.getOrientation();
+    cameraTargetRotation = cameraStartRotation;
     
-    loadLineDataFromFile("data/UBAHNOGD.csv");
-    loadStationsDataFromFile("data/UBAHNHALTOGD.csv");
+    this->lines = UbahnDataLoader::loadLineDataFromFile("data/UBAHNOGD.csv");
+    this->dataMiddlePoint = computeDataMiddlePoint();
+    this->stations = UbahnDataLoader::loadStationsDataFromFile("data/UBAHNHALTOGD.csv");
+    
+    this->yunStations = UbahnDataLoader::loadDataFromYun("data/vienna-ubahn-diff.txt");
     
     //~ Load data to GPU buffer
     for (auto& line : this->lines)
@@ -245,13 +161,6 @@ void ViennaSubwayMapApp::setup()
     simpleShaderStrip = loadShaders("simple-tristrip.vs", "simple-tristrip.fs");
 }
 
-//void ViennaSubwayMapApp::mouseDown( MouseEvent event )
-//{
-//    mouseIsDown = true;
-//    cout << "sup: " << event.getPos() << endl; //~ returns position in window coordinates (0,0) top left
-//    quat camOrientation = mCamera.getOrientation();
-//}
-//
 void ViennaSubwayMapApp::mouseUp( MouseEvent event )
 {
     //mouseIsDown = false;
@@ -262,10 +171,6 @@ void ViennaSubwayMapApp::mouseUp( MouseEvent event )
 void ViennaSubwayMapApp::mouseWheel(MouseEvent event)
 {
     float incr = event.getWheelIncrement();
-//    zoomCurrentValue = 0.0f;
-//    zoomStartValue = 0.0f;
-//    zoomTargetValue = incr;
-//    zoomAnimT = 0.0f;
     
     auto v = mCamera.getViewDirection();
     auto currentPos = mCamera.getEyePoint();
@@ -276,8 +181,6 @@ void ViennaSubwayMapApp::mouseWheel(MouseEvent event)
 
 void ViennaSubwayMapApp::mouseDrag(MouseEvent event)
 {
-    cout << "mouseDrag" << endl;
-    
     ivec2 posNow;
     ivec2 posBefore;
     if (draggingNow)
@@ -288,10 +191,13 @@ void ViennaSubwayMapApp::mouseDrag(MouseEvent event)
         auto diff = posNow - posBefore;
         
         quat camRotation = mCamera.getOrientation();
-        cout << "diff = " << diff;
-        quat yaw = angleAxis((float)(diff.x * toRadians(0.1f)), vec3(0, 1, 0));
-        quat pitch = angleAxis((float)(diff.y * toRadians(0.1f)), vec3(1, 0, 0));
-        mCamera.setOrientation(camRotation * yaw * pitch);
+        quat yaw = angleAxis((float)(diff.x * toRadians(1.0f)), vec3(0, 1, 0) * camRotation);
+        //quat pitch = angleAxis((float)(diff.y * toRadians(1.0f)), vec3(1, 0, 0) * camRotation);
+        quat pitch = angleAxis((float)(diff.y * toRadians(1.0f)), vec3(0, 0, 1) * camRotation);
+        cameraStartRotation = mCamera.getOrientation();
+        cameraTargetRotation = mCamera.getOrientation() * yaw * pitch;
+        cameraRotT = 0.0f;
+        //mCamera.setOrientation(camRotation * yaw * pitch);
     }
     else {
         draggingNow = true;
@@ -306,14 +212,18 @@ void ViennaSubwayMapApp::update()
     lastFrameTime = elapsedMs;
     
     //~ zoom update
-//    zoomAnimT += frameTime;
-//    float t = zoomAnimT / zoomAnimDurationMs;
-//    zoomCurrentValue = lerp(zoomStartValue, zoomTargetValue, t);
     cameraAnimT += frameTime;
     float t = cameraAnimT / cameraAnimDurationMs;
     t = clamp(t, 0.0f, 1.0f);
     vec3 newPos = lerp(cameraStartPosition, cameraTargetPosition, easeOutExpo(t));
     mCamera.setEyePoint(newPos);
+    
+    //~ camera rotation update
+    cameraRotT += frameTime;
+    t = cameraRotT / cameraRotDurationMs;
+    t = clamp(t, 0.0f, 1.0f);
+    quat newRot = glm::slerp(cameraStartRotation, cameraTargetRotation, easeOutExpo(t));
+    mCamera.setOrientation(newRot);
 }
 
 void ViennaSubwayMapApp::draw()
@@ -344,6 +254,14 @@ void ViennaSubwayMapApp::draw()
     {
         auto coord = station->position - this->dataMiddlePoint;
         gl::drawCube(vec3(coord.x * 1000.0, 0, coord.y * 1000.0), vec3(0.5));
+    }
+    
+    for (auto station : yunStations)
+    {
+        auto pos = vec2(station.x, station.y) - this->dataMiddlePoint;
+        auto height = station.z;
+        
+        gl::drawCube(vec3(pos.x * 1000.0, height, pos.y * 1000.0), vec3(1.0));
     }
     
     //ImGui::Text("Hello, gabi!");
