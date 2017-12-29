@@ -28,6 +28,7 @@ struct UbahnLine {
 
 struct UbahnStation {
     vec2                position;
+    float               height;
     string              name;
 };
 
@@ -43,7 +44,9 @@ public:
     static std::vector<UbahnLine*> loadLineDataFromFile(string filePath);
     static std::vector<UbahnStation*> loadStationsDataFromFile(string filePath);
     
-    static std::vector<vec3> loadDataFromYun(string filePath);
+    static bool loadDataFromYun(string filePath,
+                                std::map<std::string, UbahnStation*> & allStations,
+                                std::map<std::string, std::vector<UbahnStation*>> & lines);
 };
 
 #endif /* UbahnDataLoader_hpp */

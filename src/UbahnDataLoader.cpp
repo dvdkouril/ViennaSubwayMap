@@ -175,64 +175,78 @@ std::vector<UbahnStation*> UbahnDataLoader::loadStationsDataFromFile(string file
     return stations;
 }
 
-std::vector<vec3> UbahnDataLoader::loadDataFromYun(string filePath)
+bool UbahnDataLoader::loadDataFromYun(string filePath,
+                                      std::map<std::string, UbahnStation*> & allStations,
+                                      std::map<std::string, std::vector<UbahnStation*>> & lines)
 {
-    std::vector<vec3> stations;
+    //std::vector<vec3> stations;
     ifstream textFile(getAssetPath(filePath).c_str());
     if (textFile.is_open())
     {
         string line;
         size_t numOfLines = 0;
+        std::string currentLine;
+        std::string currentColor;
+        
+        //std::vector<UbahnStation*> stations;
+        //std::map<std::string, UbahnStation*> allStations;
+        //std::map<std::string, std::vector<UbahnStation*>> lines;
+        allStations.clear();
+        lines.clear();
         while (getline(textFile, line))
         {
-            if (numOfLines == 0)
-            {
-                numOfLines++;
-                continue; //~ skip the first line with headings
-            }
             cout << line << endl;
+            
             auto tokens = Utils::tokenize(line, ",");
             if (tokens[0] == "Line")
             {
+                //stations.clear();
+                currentLine = tokens[1];
                 continue;
             }
             
             if (tokens[0] == "Color")
             {
+                
                 continue;
             }
             
-            if (tokens[0] == "#") break;
+            if (tokens[0] == "#")
+            { // stations data
+                auto name = tokens[1];
+                auto xStr = tokens[2];
+                auto yStr = tokens[3];
+                auto hStr = tokens[4];
+                
+                auto x = stod(xStr);
+                auto y = stod(yStr);
+                auto h = stod(hStr);
+                
+                
+                UbahnStation * station = new UbahnStation();
+                station->name = name;
+                station->position = vec2(x, y);
+                station->height = h * 0.01;
+                
+                //stations.push_back(station);
+                allStations[station->name] = station;
+                
+                lines[currentLine].push_back(station);
+            }
             
-            auto name = tokens[0];
-            auto xStr = tokens[1];
-            auto yStr = tokens[2];
-            auto hStr = tokens[3];
-
-            auto x = stod(xStr);
-            auto y = stod(yStr);
-            auto h = stod(hStr);
-            
-            stations.push_back(vec3(x, y, h));
-            
-            //cout << x << " " << y << " " << h << endl;
-            
-            //string point = tokens[2];
-            //string name = tokens[5];
-            
-            //vec2 stationPosition = UbahnDataLoader::getPositionFromString(point);
-            
-            //UbahnStation * station = new UbahnStation;
-            //station->name = name;
-            //station->position = stationPosition;
-            
-            //stations.push_back(station);
+            if (tokens[0] == "~")
+            { // lines data
+                auto firstStation = tokens[1];
+                auto secondStation = tokens[2];
+                auto weight = tokens[3];
+                
+                //~ Actually, do nothing
+            }
             
             numOfLines++;
         }
     }
-    return stations;
-    //return std::vector<vec3>();
+    return true;
 }
 
 
