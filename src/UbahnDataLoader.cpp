@@ -232,7 +232,7 @@ std::vector<UbahnLine*> UbahnDataLoader::loadDataFromYun(string filePath)
                 UbahnStation * station = new UbahnStation();
                 station->name = name;
                 station->position = vec2(x, y);
-                station->height = h;
+                station->height = h * 2.0f;
                 
                 currentLine->stations.push_back(station);
             }

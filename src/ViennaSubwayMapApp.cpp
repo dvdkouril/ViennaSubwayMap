@@ -131,7 +131,6 @@ void ViennaSubwayMapApp::setup()
     this->dataMiddlePoint = computeDataMiddlePoint();
     this->adjustScale();
     
-    int i = 0;
     for (auto line : lines)
     {
         std::vector<vec3> points;
@@ -142,13 +141,57 @@ void ViennaSubwayMapApp::setup()
             points.push_back(pointPosition);
         }
         
+        //~ Generate rectangular strip around the line
+        std::vector<vec3> stripData;
+        for (int i = 0; i < line->stations.size() - 1; i++)
+        {
+            vec3 thisPoint;
+            thisPoint.x = line->stations[i]->position.x;
+            thisPoint.y = line->stations[i]->height;
+            thisPoint.z = line->stations[i]->position.y;
+            vec3 nextPoint;
+            nextPoint.x = line->stations[i + 1]->position.x;
+            nextPoint.y = line->stations[i + 1]->height;
+            nextPoint.z = line->stations[i + 1]->position.y;
+            auto direction = nextPoint - thisPoint;
+            /*auto thisPoint = line->stations[i]->position;
+            auto nextPoint = line->stations[i + 1]->position;
+            
+            vec2 direction2d = nextPoint - thisPoint;
+            vec3 direction = vec3(direction2d.x, 0, direction2d.y);*/
+            vec3 up = vec3(0, 1, 0);
+            
+            vec3 offsetVector = cross(normalize(direction), normalize(up));
+            vec3 offsetVectorInv = -offsetVector;
+            
+            /*vec3 A = vec3(thisPoint.x, 0, thisPoint.y) + 0.5f * offsetVectorInv;
+            vec3 B = vec3(thisPoint.x, 0, thisPoint.y) + 0.5f * offsetVector;
+            vec3 C = vec3(nextPoint.x, 0, nextPoint.y) + 0.5f * offsetVectorInv;
+            vec3 D = vec3(nextPoint.x, 0, nextPoint.y) + 0.5f * offsetVector;*/
+            
+            vec3 A = thisPoint + 0.5f * offsetVectorInv;
+            vec3 B = thisPoint + 0.5f * offsetVector;
+            vec3 C = nextPoint + 0.5f * offsetVectorInv;
+            vec3 D = nextPoint + 0.5f * offsetVector;
+            
+            stripData.push_back(A);
+            stripData.push_back(B);
+            stripData.push_back(C);
+            stripData.push_back(D);
+        }
+        
         gl::VboMesh::Layout layout;
         layout.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 3);
         
         line->lineVertexData = gl::VboMesh::create(points.size(), GL_LINE_STRIP, {layout});
         line->lineVertexData->bufferAttrib(geom::POSITION, points.size() * sizeof(vec3), points.data());
-        i++;
+        
+        line->stripVertexData = gl::VboMesh::create(stripData.size(), GL_TRIANGLE_STRIP, {layout});
+        line->stripVertexData->bufferAttrib(geom::POSITION, stripData.size() * sizeof(vec3), stripData.data());
+        
     }
+    
+    
     
     //~ Shaders loading
     simpleShader = loadShaders("simple.vs", "simple.fs");
@@ -235,6 +278,7 @@ void ViennaSubwayMapApp::draw()
             vec4 colVec = vec4(line->color.r, line->color.g, line->color.b, 1.0);
             simpleShaderStrip->uniform("lineColor", colVec);
             gl::draw(line->lineVertexData);
+            gl::draw(line->stripVertexData);
             
             for (auto station : line->stations)
             {
