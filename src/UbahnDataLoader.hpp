@@ -17,19 +17,22 @@ using namespace std;
 using namespace ci::app;
 using namespace ci;
 
-struct UbahnLine {
-    std::vector<vec2>   points;
-    Color               lineColor;
-    string              lineName;
-    int                 lineNumber;
-    gl::VboMeshRef      linePositionData;
-    gl::VboMeshRef      lineStripData;
-};
-
 struct UbahnStation {
     vec2                position;
     float               height;
     string              name;
+    // maybe todo save to which line this station belongs to...
+};
+
+struct UbahnLine {
+    std::vector<UbahnStation*>  stations;
+    Color                       color;
+    string                      name;
+    int                         number;
+    
+    //~ GPU Data
+    gl::VboMeshRef      lineVertexData;
+    gl::VboMeshRef      stripVertexData;
 };
 
 class UbahnDataLoader
@@ -41,12 +44,13 @@ public:
     static vector<vec2> getCoordinatesFromString(string dataString);
     static vec2 getPositionFromString(string point);
     
-    static std::vector<UbahnLine*> loadLineDataFromFile(string filePath);
-    static std::vector<UbahnStation*> loadStationsDataFromFile(string filePath);
+    //static std::vector<UbahnLine*> loadLineDataFromFile(string filePath);
+    //static std::vector<UbahnStation*> loadStationsDataFromFile(string filePath);
     
-    static bool loadDataFromYun(string filePath,
-                                std::map<std::string, UbahnStation*> & allStations,
-                                std::map<std::string, std::vector<UbahnStation*>> & lines);
+//    static bool loadDataFromYun(string filePath,
+//                                std::map<std::string, UbahnStation*> & allStations,
+//                                std::map<std::string, std::vector<UbahnStation*>> & lines);
+    static std::vector<UbahnLine*> loadDataFromYun(string filePath);
 };
 
 #endif /* UbahnDataLoader_hpp */

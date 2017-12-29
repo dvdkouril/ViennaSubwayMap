@@ -33,19 +33,21 @@ class ViennaSubwayMapApp : public App {
     void loadStationsDataFromFile(string filePath);
     
     vec2 computeDataMiddlePoint();
+    void adjustScale();
     
 private:
     CameraPersp                     mCamera;
     CameraUi                        mCameraController;
-    std::vector<UbahnLine*>         lines;
+    //std::vector<UbahnLine*>         lines;
     //std::map<size_t, UbahnLine*>    uBahnLines;
-    std::vector<UbahnStation*>      stations;
+    //std::vector<UbahnStation*>      stations;
     
     //~ Data from Yun
-    std::vector<vec3>                                       yunStations;
-    std::map<std::string, UbahnStation*>                    uBahnStations;
-    std::map<std::string, std::vector<UbahnStation*>>       uBahnLines;
-    gl::VboMeshRef                                          linesVbos[5];
+    //std::vector<vec3>                                       yunStations;
+    //std::map<std::string, UbahnStation*>                    uBahnStations;
+    //std::map<std::string, std::vector<UbahnStation*>>       uBahnLines;
+    std::vector<UbahnLine*>                 lines;
+    //gl::VboMeshRef                                          linesVbos[5];
     
     
     //bool                    mouseIsDown;
@@ -75,8 +77,9 @@ vec2 ViennaSubwayMapApp::computeDataMiddlePoint()
     vec2 maxCoord(0,0);
     for (auto line : lines)
     {
-        for (auto coord : line->points)
+        for (auto station : line->stations)
         {
+            auto coord = station->position;
             if (coord.x < minCoord.x) {
                 minCoord.x = coord.x;
             }
@@ -96,6 +99,18 @@ vec2 ViennaSubwayMapApp::computeDataMiddlePoint()
     return midPoint;
 }
 
+void ViennaSubwayMapApp::adjustScale()
+{
+    for (auto line : lines)
+    {
+        for (auto & station : line->stations)
+        {
+            station->position -= this->dataMiddlePoint;
+            station->position *= 1000.0;
+        }
+    }
+}
+
 void ViennaSubwayMapApp::setup()
 {
     ImGui::initialize();
@@ -111,74 +126,28 @@ void ViennaSubwayMapApp::setup()
     cameraStartRotation = mCamera.getOrientation();
     cameraTargetRotation = cameraStartRotation;
     
-    this->lines = UbahnDataLoader::loadLineDataFromFile("data/UBAHNOGD.csv");
-    this->dataMiddlePoint = computeDataMiddlePoint();
-    this->stations = UbahnDataLoader::loadStationsDataFromFile("data/UBAHNHALTOGD.csv");
+    this->lines = UbahnDataLoader::loadDataFromYun("data/vienna-ubahn.txt");
     
-    UbahnDataLoader::loadDataFromYun("data/vienna-ubahn.txt", uBahnStations, uBahnLines);
+    this->dataMiddlePoint = computeDataMiddlePoint();
+    this->adjustScale();
     
     int i = 0;
-    for (auto pair : uBahnLines)
+    for (auto line : lines)
     {
-        auto line = pair.second;
         std::vector<vec3> points;
-        for (auto station : line)
+        for (auto station : line->stations)
         {
-            vec2 offsetted = station->position - this->dataMiddlePoint;
+            vec2 offsetted = station->position;
             vec3 pointPosition = vec3(offsetted.x, station->height, offsetted.y);
             points.push_back(pointPosition);
         }
         
         gl::VboMesh::Layout layout;
         layout.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 3);
-        linesVbos[i] = gl::VboMesh::create(points.size(), GL_LINE_STRIP, {layout});
-        linesVbos[i]->bufferAttrib(geom::POSITION, points.size() * sizeof(vec3), points.data());
+        
+        line->lineVertexData = gl::VboMesh::create(points.size(), GL_LINE_STRIP, {layout});
+        line->lineVertexData->bufferAttrib(geom::POSITION, points.size() * sizeof(vec3), points.data());
         i++;
-    }
-    
-    //~ Load data to GPU buffer
-    for (auto& line : this->lines)
-    {
-        for (auto &coord : line->points)
-        {
-            coord -= this->dataMiddlePoint;
-        }
-        
-        gl::VboMesh::Layout layout;
-        layout.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 2);
-        line->linePositionData = gl::VboMesh::create(line->points.size(), GL_LINE_STRIP, {layout});
-        line->linePositionData->bufferAttrib(geom::POSITION, line->points.size() * sizeof(vec2), line->points.data());
-        
-        //~ Generate rectangular strip around the line
-        std::vector<vec3> stripData;
-        for (int i = 0; i < line->points.size() - 1; i++)
-        {
-            auto thisPoint = line->points[i];
-            auto nextPoint = line->points[i + 1];
-            
-            vec2 direction2d = nextPoint - thisPoint;
-            vec3 direction = vec3(direction2d.x, 0, direction2d.y);
-            vec3 up = vec3(0, 1, 0);
-            
-            vec3 offsetVector = cross(normalize(direction), normalize(up));
-            vec3 offsetVectorInv = -offsetVector;
-            
-            vec3 A = vec3(thisPoint.x, 0, thisPoint.y) + 0.0005f * offsetVectorInv;
-            vec3 B = vec3(thisPoint.x, 0, thisPoint.y) + 0.0005f * offsetVector;
-            vec3 C = vec3(nextPoint.x, 0, nextPoint.y) + 0.0005f * offsetVectorInv;
-            vec3 D = vec3(nextPoint.x, 0, nextPoint.y) + 0.0005f * offsetVector;
-            
-            stripData.push_back(A);
-            stripData.push_back(B);
-            stripData.push_back(C);
-            stripData.push_back(D);
-        }
-        
-        gl::VboMesh::Layout layoutStrip;
-        layoutStrip.usage(GL_STATIC_DRAW).attrib(geom::POSITION, 3);
-        line->lineStripData = gl::VboMesh::create(stripData.size(), GL_TRIANGLE_STRIP, {layoutStrip});
-        line->lineStripData->bufferAttrib(geom::POSITION, stripData.size() * sizeof(vec3), stripData.data());
-        
     }
     
     //~ Shaders loading
@@ -258,59 +227,25 @@ void ViennaSubwayMapApp::draw()
     
     gl::setMatrices(mCamera);
     {
-        //~ Simple Line rendering
-//        gl::ScopedGlslProg prog(simpleShader);
-//        gl::setDefaultShaderVars();
-//        for (auto line : lines)
-//        {
-//            vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
-//            simpleShader->uniform("lineColor", colVec4);
-//            gl::draw(line->linePositionData);
-//        }
-        //~ Thick Line rendering
-//        gl::ScopedGlslProg progStrip(simpleShaderStrip);
-//        gl::setDefaultShaderVars();
-//        for (auto line : lines)
-//        {
-//            vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
-//            simpleShaderStrip->uniform("lineColor", colVec4);
-//            gl::draw(line->lineStripData);
-//        }
-//        gl::ScopedGlslProg prog2(simpleShader);
-//        gl::setDefaultShaderVars();
-//        for (auto line : lines)
-//        {
-//            vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
-//            simpleShader->uniform("lineColor", colVec4);
-//            gl::draw(line->linePositionData);
-//        }
-        
         gl::ScopedGlslProg progStrip(simpleShaderStrip);
         gl::setDefaultShaderVars();
-        for (int i = 0; i < 5; i++)
+        for (auto line : lines)
         {
-            auto line = linesVbos[i];
             //vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
             simpleShaderStrip->uniform("lineColor", vec4(1.0, 0.0, 0.0, 1.0));
-            gl::draw(line);
+            gl::draw(line->lineVertexData);
+            
+            for (auto station : line->stations)
+            {
+                //auto pos = station->position - this->dataMiddlePoint;
+                auto pos = station->position;
+                auto height = station->height;
+                
+                gl::drawCube(vec3(pos.x, height, pos.y), vec3(1.0));
+            }
+            //gl::drawCube(vec3(0,0,0), vec3(1.0));
         }
     }
-//    for (auto station : stations)
-//    {
-//        auto coord = station->position - this->dataMiddlePoint;
-//        gl::drawCube(vec3(coord.x * 1000.0, 0, coord.y * 1000.0), vec3(0.5));
-//    }
-    
-    for (auto station : uBahnStations)
-    {
-        auto st = station.second;
-        auto pos = st->position - this->dataMiddlePoint;
-        auto height = st->height;
-        
-        gl::drawCube(vec3(pos.x * 1000.0, height * 1000.0, pos.y * 1000.0), vec3(1.0));
-    }
-    
-    //ImGui::Text("Hello, gabi!");
 }
 
 gl::GlslProgRef ViennaSubwayMapApp::loadShaders(std::string vsFilename, std::string fsFilename) {
