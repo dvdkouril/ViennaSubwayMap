@@ -206,7 +206,15 @@ std::vector<UbahnLine*> UbahnDataLoader::loadDataFromYun(string filePath)
             
             if (tokens[0] == "Color")
             {
+                auto rStr = tokens[1];
+                auto gStr = tokens[2];
+                auto bStr = tokens[3];
                 
+                auto r = stod(rStr);
+                auto g = stod(gStr);
+                auto b = stod(bStr);
+                Color col(r / 255.0, g / 255.0, b / 255.0);
+                currentLine->color = col;
                 continue;
             }
             
@@ -224,7 +232,7 @@ std::vector<UbahnLine*> UbahnDataLoader::loadDataFromYun(string filePath)
                 UbahnStation * station = new UbahnStation();
                 station->name = name;
                 station->position = vec2(x, y);
-                station->height = h * 0.01;
+                station->height = h;
                 
                 currentLine->stations.push_back(station);
             }

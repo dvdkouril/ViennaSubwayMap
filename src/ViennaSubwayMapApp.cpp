@@ -232,7 +232,8 @@ void ViennaSubwayMapApp::draw()
         for (auto line : lines)
         {
             //vec4 colVec4 = vec4(line->lineColor.r, line->lineColor.g, line->lineColor.b, 1.0);
-            simpleShaderStrip->uniform("lineColor", vec4(1.0, 0.0, 0.0, 1.0));
+            vec4 colVec = vec4(line->color.r, line->color.g, line->color.b, 1.0);
+            simpleShaderStrip->uniform("lineColor", colVec);
             gl::draw(line->lineVertexData);
             
             for (auto station : line->stations)
